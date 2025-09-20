@@ -1,4 +1,3 @@
-
 extern internal class StringBuilder {
     extern static method fn new() -> self
     extern method fn add<T>(T s)

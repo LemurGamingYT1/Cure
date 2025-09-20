@@ -3,25 +3,32 @@
 #include "builtins/builtins.hpp"
 #include "color/color.hpp"
 
-#include <SDL3/SDL.h>
+#include <GLFW/glfw3.h>
+#include <gl/GL.h>
 
 
 class Window {
-    SDL_Window* _window;
-    SDL_Renderer* _renderer;
+    GLFWwindow* window;
     string _title;
     int _width, _height;
 public:
     Window(
         const string& title, int width, int height
     ) : _title(title), _width(width), _height(height) {
-        if (!SDL_Init(SDL_INIT_VIDEO))
-            error("SDL failed to initialise");
-        
-        if (!SDL_CreateWindowAndRenderer(title.c_str(), width, height, 0, &_window, &_renderer)) {
+        if (!glfwInit())
+            error("Failed to initialize GLFW");
+
+        window = glfwCreateWindow(_width, _height, _title.c_str(), nullptr, nullptr);
+        if (window == nullptr) {
             close();
-            error("SDL failed to create window");
+            error("Failed to create GLFW window");
         }
+        
+        glfwMakeContextCurrent(window);
+        glViewport(0, 0, _width, _height);
+        glfwSetFramebufferSizeCallback(window, [](GLFWwindow* _, int width, int height) {
+            glViewport(0, 0, width, height);
+        });
     }
 
     ~Window() {
@@ -31,32 +38,27 @@ public:
     string title() const { return _title; }
     int width() const { return _width; }
     int height() const { return _height; }
-    bool is_running() const {
-        SDL_Event event;
-        while (SDL_PollEvent(&event)) {
-            if (event.type == SDL_EVENT_QUIT)
-                return false;
+    bool is_running() const { return glfwWindowShouldClose(window); }
+
+    nil close() {
+        if (window != nullptr) {
+            glfwDestroyWindow(window);
+            window = nullptr;
         }
-
-        return true;
-    }
-
-    nil close() const {
-        if (_window != nullptr)
-            SDL_DestroyWindow(_window);
         
-        if (_renderer != nullptr)
-            SDL_DestroyRenderer(_renderer);
-        
-        SDL_Quit();
+        glfwTerminate();
         return nil();
     }
 
     nil set_bg(const Color& color) const {
+        glClearColor(color.r() / 255.0f, color.g() / 255.0f, color.b() / 255.0f, color.a() / 255.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
         return nil();
     }
 
     nil update() const {
+        glfwSwapBuffers(window);
+        glfwPollEvents();
         return nil();
     }
 };

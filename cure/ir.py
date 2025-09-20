@@ -181,8 +181,8 @@ class Scope:
             debug(f'Found cure file {cure}')
             self.use_local(cure)
         
-        if (deps := stdlib_path / 'dependencies.txt').exists():
-            self.read_dependencies(deps)
+        if (dependencies := stdlib_path / 'dependencies.txt').exists():
+            self.read_dependencies(dependencies)
     
     def read_dependencies(self, file: Path):
         lines = file.read_text().splitlines()
@@ -199,14 +199,20 @@ class Scope:
                     self.dependencies.append(Dependency(
                         file.parent / Path(directory.strip()), 'hpp_dir'
                     ))
-            elif line.startswith('deps = '):
-                line = line.removeprefix('deps = ')
+            elif line.startswith('subdirs = '):
+                line = line.removeprefix('subdirs = ')
                 for dependency in line.split(','):
-                    self.dependencies.append(Dependency(file.parent / Path(dependency.strip()), 'dep'))
+                    self.dependencies.append(Dependency(
+                        file.parent / Path(dependency.strip()), 'subdir'
+                    ))
             elif line.startswith('libs = '):
                 line = line.removeprefix('libs = ')
                 for library in line.split(','):
                     self.dependencies.append(Dependency(Path(library.strip()), 'lib'))
+            elif line.startswith('packages = '):
+                line = line.removeprefix('packages = ')
+                for library in line.split(','):
+                    self.dependencies.append(Dependency(Path(library.strip()), 'package'))
     
     def use_local(self, file: Path):
         from cure import compile_to_str

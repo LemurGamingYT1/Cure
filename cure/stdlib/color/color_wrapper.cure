@@ -1,5 +1,6 @@
 extern internal class Color {
     extern static method fn new(int r, int g, int b) -> self
+    extern static method fn new(int r, int g, int b, int a) -> self
     // extern static method fn new(string hex) -> self
     extern property fn r() -> int
     extern property fn g() -> int

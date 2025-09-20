@@ -4,17 +4,20 @@
 
 
 class Color {
-    int _r;
-    int _g;
-    int _b;
+    unsigned char _r;
+    unsigned char _g;
+    unsigned char _b;
+    unsigned char _a;
 public:
-    Color(int r, int g, int b) : _r(r), _g(g), _b(b) {}
+    Color(unsigned char r, unsigned char g, unsigned char b) : _r(r), _g(g), _b(b), _a(255) {}
+    Color(unsigned char r, unsigned char g, unsigned char b, unsigned char a) : _r(r), _g(g), _b(b), _a(a) {}
 
     // TODO: Color(string hex)
 
     int r() const { return _r; }
     int g() const { return _g; }
     int b() const { return _b; }
+    int a() const { return _a; }
 
     string hex() const {
         static char buf[16];
@@ -35,5 +38,5 @@ public:
 
 string to_string(const Color& color) {
     return "Color(r=" + to_string(color.r()) + ", g=" + to_string(color.g()) + ", b=" +
-        to_string(color.b()) + ")";
+        to_string(color.b()) + ", a=" + to_string(color.a()) + ")";
 }

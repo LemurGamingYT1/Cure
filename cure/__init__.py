@@ -20,9 +20,10 @@ def compile_to_str(scope: Scope):
     program = parse(scope)
     return program.analyse(scope).codegen(scope)
 
-def compile_cmake(build_dir: Path = Path.cwd(), **kwargs):
+def compile_cmake(source_dir: Path = Path.cwd(), build_dir: Path = Path.cwd(), **kwargs):
     kwargs_str = ' '.join(f'{k}={v}' for k, v in kwargs.items())
-    make_build_cmd = f'cmake -B {build_dir.as_posix()} {kwargs_str} -G "Ninja"'
+    make_build_cmd = f'cmake -B {build_dir.as_posix()} -S {source_dir.as_posix()} {kwargs_str} -G'\
+        '"Ninja"'
     build_cmd = f'cmake --build {build_dir.as_posix()}'
     debug(f'Running CMake commands ({make_build_cmd} and {build_cmd})')
     return run(f'{make_build_cmd} && {build_cmd}', shell=True)
@@ -53,16 +54,36 @@ def compile_to_exe(scope: Scope):
         if dep.type == 'hpp_dir'
     ])
 
+    subdirs = [dep.path for dep in scope.dependencies if dep.type == 'subdir']
+    subdirs_str = '\n'.join(f'add_subdirectory({subdir.absolute().as_posix()} {subdir.name})' for subdir in subdirs)
+
+    libs = [dep.path for dep in scope.dependencies if dep.type == 'lib']
+    libs_str = '\n'.join(
+        f'target_link_libraries({cmake_name} PRIVATE {lib.as_posix()})'
+        for lib in libs
+    )
+
+    packages = [dep.path for dep in scope.dependencies if dep.type == 'package']
+    packages_str = '\n'.join(
+        f'find_package({package.as_posix()})'
+        for package in packages
+    )
+
     cmake_code = f"""cmake_minimum_required(VERSION 3.10)
-project({cmake_name})
+project({cmake_name} CXX)
+
 # set(CMAKE_MESSAGE_LOG_LEVEL "WARNING")
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_BUILD_TYPE "{build_type}")
 set(SOURCES {code_files})
 
+{packages_str}
+{subdirs_str}
+
 add_executable({cmake_name} ${{SOURCES}})
 
 target_include_directories({cmake_name} PRIVATE {include_dirs})
+{libs_str}
 
 if (MSVC)
     target_compile_options({cmake_name} PRIVATE /W4)
@@ -73,22 +94,10 @@ endif()
 add_definitions(-D{scope.target.macro_name}=1)
 """
 
-    for dep in scope.dependencies:
-        match dep.type:
-            case 'lib':
-                cmake_code += f"""
-target_link_libraries({cmake_name} PRIVATE {dep.path.as_posix()})
-"""
-            case 'dep':
-                cmake_code += f"""
-add_subdirectory({dep.path.as_posix()} ${{CMAKE_BINARY_DIR}}/{dep.path.name})
-"""
-
     cmakelists = build_dir / 'CMakeLists.txt'
     cmakelists.write_text(cmake_code)
 
-    kwargs = {'-S': cmakelists.parent.as_posix()}
-    ret_code = compile_cmake(build_dir, **kwargs)
+    ret_code = compile_cmake(cmakelists.parent, build_dir)
     if ret_code.returncode != 0:
         print(f'{Fore.RED}error: failed to build{Style.RESET_ALL}')
         return
